@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
+import { FileManager, ReplicationLevel } from '@storagehub-sdk/core';
+import { TypeRegistry } from '@polkadot/types';
+import { AccountId20, H256 } from '@polkadot/types/interfaces';
 import { getStorageHubClient, getMspClient, MSP_URL } from '@/lib/dataHavenClient';
 import { initializePolkadotApi } from '@/lib/polkadotClient';
 import { getWalletClient } from '@wagmi/core';
@@ -26,91 +29,154 @@ export function useUploadFile() {
       const { mspClient } = await getMspClient();
       const polkadotApi = await initializePolkadotApi();
 
-      // Read file as ArrayBuffer
-      const fileBuffer = await file.arrayBuffer();
-      const fileBytes = new Uint8Array(fileBuffer);
+      // Step 1: Initialize FileManager
+      console.log('📁 Initializing FileManager...');
+      const fileSize = file.size;
+      const fileManager = new FileManager({
+        size: fileSize,
+        stream: () => {
+          // Convert File to ReadableStream
+          return file.stream();
+        },
+      });
 
-      // Get MSP info
+      // Step 2: Create fingerprint
+      console.log('🔍 Computing file fingerprint...');
+      const fingerprint = await fileManager.getFingerprint();
+      console.log(`Fingerprint: ${fingerprint.toHex()}`);
+      
+      const fileSizeBigInt = BigInt(fileManager.getFileSize());
+      console.log(`File size: ${fileSize} bytes`);
+
+      // Step 3: Get MSP info and extract peer IDs
+      console.log('📡 Fetching MSP details...');
       const mspInfo = await mspClient.info.getInfo();
       const mspId = mspInfo.mspId;
-
-      // Derive file key from bucket ID and file name
-      // File key is typically: hash(owner + bucketId + fileName)
-      // For now, we'll use a simple approach - in production, use proper derivation
-      const fileKey = `${bucketId}_${file.name}`;
+      const multiaddresses = (mspInfo as any).multiaddresses || [];
       
-      console.log('📝 File key:', fileKey);
+      // Extract peer IDs from multiaddresses
+      function extractPeerIDs(multiaddresses: string[]): string[] {
+        return (multiaddresses ?? [])
+          .map((addr) => addr.split('/p2p/').pop())
+          .filter((id): id is string => !!id);
+      }
+      
+      const peerIds = extractPeerIDs(multiaddresses);
+      if (peerIds.length === 0) {
+        console.warn('⚠️ No peer IDs found in MSP multiaddresses, using empty array');
+      }
+      console.log(`Found ${peerIds.length} peer IDs`);
 
-      // Step 1: Authenticate with MSP (SIWE) - required for upload
-      // Note: SIWE authentication might require specific wallet format
-      // For now, we'll skip authentication and see if upload works
-      // In production, proper SIWE authentication should be implemented
-      console.log('🔐 Skipping SIWE authentication for now...');
-      // TODO: Implement proper SIWE authentication
+      // Set replication policy
+      const replicationLevel = ReplicationLevel.Custom;
+      const replicas = 1;
 
-      // Step 2: Issue storage request on-chain
+      // Step 4: Issue storage request
       console.log('📤 Issuing storage request...');
-      
-      // Create file location (file name)
-      const location = file.name;
-      
-      // Calculate fingerprint (hash of file content)
-      // Use Web Crypto API for browser-compatible hashing
-      const hashBuffer = await crypto.subtle.digest('SHA-256', fileBytes);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      const fingerprint = `0x${hashHex}` as `0x${string}`;
-      
       const storageRequestTxHash = await storageHubClient.issueStorageRequest(
         bucketId as `0x${string}`,
-        location,
-        fingerprint,
-        BigInt(fileBytes.length),
+        file.name,
+        fingerprint.toHex() as `0x${string}`,
+        fileSizeBigInt,
         mspId as `0x${string}`,
-        [], // peerIds - empty for now
-        'Single' as any, // replicationTarget - use 'Single' as default
-        0, // customReplicationTarget - use 0 as default
-        {} // options
+        peerIds,
+        replicationLevel,
+        replicas
       );
-
+      
+      console.log('issueStorageRequest() txHash:', storageRequestTxHash);
       if (!storageRequestTxHash) {
-        throw new Error('Failed to issue storage request');
+        throw new Error('issueStorageRequest() did not return a transaction hash');
       }
 
       // Wait for storage request transaction
-      const storageRequestReceipt = await publicClient.waitForTransactionReceipt({
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash: storageRequestTxHash,
       });
-
-      if (storageRequestReceipt.status !== 'success') {
-        throw new Error('Storage request transaction failed');
+      
+      if (receipt.status !== 'success') {
+        throw new Error(`Storage request failed: ${storageRequestTxHash}`);
       }
-
       console.log('✅ Storage request confirmed:', storageRequestTxHash);
 
-      // Step 3: Upload file to MSP
-      console.log('📤 Uploading file to MSP...');
-      
-      // Convert fileBytes to a format MSP client can use
-      // Create a Blob and then a ReadableStream
-      const blob = new Blob([fileBytes]);
-      const fileStream = blob.stream();
+      // Step 5: Compute file key
+      console.log('🔑 Computing file key...');
+      const registry = new TypeRegistry();
+      const owner = registry.createType(
+        'AccountId20',
+        walletAddress
+      ) as AccountId20;
+      const bucketIdH256 = registry.createType('H256', bucketId) as H256;
+      const fileKey = await fileManager.computeFileKey(
+        owner,
+        bucketIdH256,
+        file.name
+      );
+      console.log(`File key: ${fileKey.toHex()}`);
 
-      await mspClient.files.uploadFile(
-        bucketId as `0x${string}`,
-        fileKey,
-        fileStream as any,
-        walletAddress as `0x${string}`,
-        location
+      // Step 6: Verify storage request on-chain
+      console.log('🔍 Verifying storage request on-chain...');
+      const storageRequest = await polkadotApi.query.fileSystem.storageRequests(
+        fileKey
+      );
+      
+      if (!storageRequest.isSome) {
+        throw new Error('Storage request not found on chain');
+      }
+      
+      const storageRequestData = storageRequest.unwrap().toHuman();
+      console.log('Storage request data:', storageRequestData);
+      console.log(
+        'Storage request bucketId matches:',
+        storageRequestData.bucketId === bucketId
+      );
+      console.log(
+        'Storage request fingerprint matches:',
+        storageRequestData.fingerprint === fingerprint.toString()
       );
 
-      console.log('✅ File uploaded to MSP');
+      // Step 7: Authenticate with MSP (SIWE)
+      console.log('🔐 Authenticating with MSP...');
+      const walletClient = await getWalletClient(config);
+      if (!walletClient) {
+        throw new Error('Wallet client not available');
+      }
+      
+      try {
+        const mspUrl = new URL(MSP_URL);
+        const domain = mspUrl.hostname;
+        const siweSession = await mspClient.auth.SIWE(walletClient as any);
+        console.log('✅ Authenticated with MSP');
+      } catch (authError: any) {
+        console.warn('⚠️ SIWE authentication failed:', authError.message);
+        // Continue anyway - some operations might work without auth
+      }
+
+      // Step 8: Upload file to MSP
+      console.log('📤 Uploading file to MSP...');
+      const fileBlob = await fileManager.getFileBlob();
+      const uploadReceipt = await mspClient.files.uploadFile(
+        bucketId as `0x${string}`,
+        fileKey.toHex(),
+        fileBlob,
+        walletAddress as `0x${string}`,
+        file.name
+      );
+      
+      console.log('File upload receipt:', uploadReceipt);
+
+      if (uploadReceipt.status !== 'upload_successful') {
+        throw new Error(`File upload to MSP failed: ${uploadReceipt.status}`);
+      }
+
+      console.log('✅ File uploaded successfully to MSP');
 
       return {
         success: true,
-        fileKey,
+        fileKey: fileKey.toHex(),
         txHash: storageRequestTxHash,
-        message: `✅ File uploaded successfully! Key: ${fileKey}`,
+        uploadReceipt,
+        message: `✅ File uploaded successfully! Key: ${fileKey.toHex()}`,
       };
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to upload file';
