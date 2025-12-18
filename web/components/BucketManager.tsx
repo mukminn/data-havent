@@ -17,7 +17,7 @@ export function BucketManager() {
       
       <div className="space-y-6">
         <CreateBucket onSuccess={() => setRefreshKey(k => k + 1)} />
-        <BucketList key={refreshKey} />
+        <BucketList refreshTrigger={refreshKey} />
       </div>
     </div>
   );

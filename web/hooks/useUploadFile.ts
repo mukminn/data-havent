@@ -69,7 +69,7 @@ export function useUploadFile() {
         mspId as `0x${string}`,
         [], // peerIds - empty for now
         'Single' as any, // replicationTarget - use 'Single' as default
-        undefined, // customReplicationTarget
+        0, // customReplicationTarget - use 0 as default
         {} // options
       );
 
