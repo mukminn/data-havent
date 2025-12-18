@@ -147,20 +147,33 @@ export function useUploadFile() {
         fileKey
       );
       
-      if (!storageRequest || storageRequest.isEmpty || !storageRequest.isSome) {
+      // Check if storage request exists (handle different Codec types)
+      const isEmpty = (storageRequest as any).isEmpty !== undefined 
+        ? (storageRequest as any).isEmpty 
+        : !storageRequest || Object.keys(storageRequest).length === 0;
+      
+      if (isEmpty) {
         console.warn('⚠️ Storage request not found on chain yet, continuing anyway...');
         console.log('This might be normal if the block is still being finalized');
       } else {
-        const storageRequestData = storageRequest.unwrap().toHuman();
-        console.log('Storage request data:', storageRequestData);
-        console.log(
-          'Storage request bucketId matches:',
-          storageRequestData.bucketId === bucketId
-        );
-        console.log(
-          'Storage request fingerprint matches:',
-          storageRequestData.fingerprint === fingerprint.toString()
-        );
+        try {
+          const storageRequestData = (storageRequest as any).unwrap?.()?.toHuman?.() 
+            || (storageRequest as any).toHuman?.() 
+            || storageRequest;
+          console.log('Storage request data:', storageRequestData);
+          if (storageRequestData && typeof storageRequestData === 'object') {
+            console.log(
+              'Storage request bucketId matches:',
+              storageRequestData.bucketId === bucketId
+            );
+            console.log(
+              'Storage request fingerprint matches:',
+              storageRequestData.fingerprint === fingerprint.toString()
+            );
+          }
+        } catch (err) {
+          console.warn('Could not parse storage request data:', err);
+        }
       }
 
       // Step 7: Authenticate with MSP (SIWE)
