@@ -1,0 +1,37 @@
+{
+  "name": "datahaven-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@storagehub-sdk/core": "^0.4.0",
+    "@storagehub-sdk/msp-client": "^0.4.0",
+    "@storagehub/types-bundle": "^0.2.8",
+    "@polkadot/api": "^12.0.0",
+    "@storagehub/api-augment": "^0.2.11",
+    "viem": "^2.38.3",
+    "wagmi": "^2.5.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@rainbow-me/rainbowkit": "^2.0.0",
+    "ethers": "^6.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0",
+    "tailwindcss": "^3.3.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0"
+  }
+}

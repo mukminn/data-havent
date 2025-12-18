@@ -112,6 +112,11 @@ const initializePolkadotApi = async (): Promise<ApiPromise> => {
   return polkadotApi;
 };
 
+// Export polkadotApi getter function
+const getPolkadotApi = async (): Promise<ApiPromise> => {
+  return await initializePolkadotApi();
+};
+
 export {
   account,
   address,
@@ -119,6 +124,7 @@ export {
   walletClient,
   storageHubClient,
   initializePolkadotApi,
+  getPolkadotApi,
   network,
   NETWORKS,
 };

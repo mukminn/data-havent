@@ -3,25 +3,37 @@
  * 
  * This file demonstrates how to use the StorageHub SDK to interact with DataHaven.
  * Make sure to set your PRIVATE_KEY environment variable before running.
+ * 
+ * Based on: https://docs.datahaven.xyz/store-and-retrieve-data/use-storagehub-sdk/create-a-bucket/
  */
 
 import '@storagehub/api-augment';
+import { initWasm } from '@storagehub-sdk/core';
 import {
   initializePolkadotApi,
   address,
-  storageHubClient,
 } from './services/clientService.js';
 import {
   initializeMspClient,
-  getMspInfo,
   getMspHealth,
-  authenticateUser,
 } from './services/mspService.js';
+import {
+  createBucket,
+  verifyBucketCreation,
+} from './operations/bucketOperations.js';
+import { HealthStatus } from '@storagehub-sdk/msp-client';
+import { checkNativeBalance } from './utils/checkBalance.js';
 
 async function main() {
   try {
+    // For anything from @storagehub-sdk/core to work, initWasm() is required
+    await initWasm();
+
     console.log('🚀 Initializing DataHaven StorageHub SDK...\n');
     console.log(`📍 Wallet Address: ${address}\n`);
+
+    // Check wallet balance first
+    await checkNativeBalance();
 
     // Initialize Polkadot API
     console.log('📡 Connecting to Polkadot API...');
@@ -33,24 +45,29 @@ async function main() {
     const mspClient = await initializeMspClient();
     console.log('✅ MSP Client connected\n');
 
-    // Get MSP Information
-    console.log('📋 Retrieving MSP Information...');
-    await getMspInfo();
-    console.log('');
+    // --- Bucket creating logic ---
 
-    // Get MSP Health Status
+    // Step 1: Check MSP Health Status
     console.log('🏥 Checking MSP Health...');
-    await getMspHealth();
+    const mspHealth: HealthStatus = await mspClient.info.getHealth();
+    console.log('MSP Health Status:', mspHealth);
     console.log('');
 
-    // Authenticate User (optional - some operations may require auth)
-    console.log('🔐 Authenticating user...');
-    const authResult = await authenticateUser();
-    if (authResult) {
-      console.log('✅ Authentication successful!\n');
-    }
+    // Step 2: Create a bucket
+    console.log('🪣 Creating bucket...');
+    const bucketName = 'init-bucket';
+    const { bucketId, txReceipt } = await createBucket(bucketName);
+    console.log(`✅ Created Bucket ID: ${bucketId}`);
+    console.log(`📝 Transaction Receipt:`, txReceipt);
+    console.log('');
 
-    console.log('✨ Setup complete! You can now use the StorageHub SDK.');
+    // Step 3: Verify bucket exists on chain
+    console.log('🔍 Verifying bucket on chain...');
+    const bucketData = await verifyBucketCreation(bucketId);
+    console.log('✅ Bucket data:', bucketData);
+    console.log('');
+
+    console.log('✨ Bucket creation complete!');
     console.log('\nAvailable clients:');
     console.log('  - storageHubClient: For chain interactions');
     console.log('  - polkadotApi: For Substrate chain queries');

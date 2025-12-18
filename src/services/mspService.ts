@@ -75,11 +75,30 @@ const authenticateUser = async (): Promise<UserInfo | null> => {
   }
 };
 
+// Retrieve MSP value propositions (storage fees)
+// Value props describe what the storage fees under that MSP are going to look like
+const getValueProps = async (): Promise<string> => {
+  const client = await initializeMspClient();
+  const valueProps = await client.info.getValuePropositions();
+  
+  if (!valueProps || valueProps.length === 0) {
+    throw new Error('No value propositions found for this MSP');
+  }
+  
+  // Use the first value prop (you can add logic to choose based on your needs)
+  const valuePropId = valueProps[0].id;
+  console.log(`Available value props: ${valueProps.length}`);
+  console.log(`Using value prop ID: ${valuePropId}`);
+  
+  return valuePropId;
+};
+
 // Export initialized client and helper functions for use in other modules
 export {
   initializeMspClient,
   getMspInfo,
   getMspHealth,
   authenticateUser,
+  getValueProps,
 };
 
