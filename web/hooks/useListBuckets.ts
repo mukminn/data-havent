@@ -97,18 +97,9 @@ export function useListBuckets() {
       const polkadotApi = await initializePolkadotApi();
       const { storageHubClient } = await getStorageHubClient();
       
-      // Note: This is a simplified approach
-      // In a real implementation, you would:
-      // 1. Query chain events for bucket creation transactions
-      // 2. Filter by owner address
-      // 3. Or use an indexer/API that tracks buckets by owner
-      
-      // For now, we'll try to get buckets from MSP if authenticated
-      // and also provide a way to manually check known bucket IDs
-      
       const buckets: BucketInfo[] = [];
       
-      // Try MSP first
+      // Method 1: Try MSP first (if authenticated)
       try {
         const { mspClient } = await getMspClient();
         const mspBuckets = await mspClient.buckets.listBuckets();
@@ -127,11 +118,69 @@ export function useListBuckets() {
           });
         }
       } catch (mspError) {
-        console.warn('MSP query failed, will try alternative methods:', mspError);
+        console.warn('MSP query failed, trying chain query:', mspError);
       }
       
-      // If no buckets found, return empty array
-      // In production, you might want to query chain events or use an indexer
+      // Method 2: Check localStorage for saved bucket IDs
+      try {
+        const savedBuckets = localStorage.getItem(`buckets_${walletAddress.toLowerCase()}`);
+        if (savedBuckets) {
+          const parsed = JSON.parse(savedBuckets);
+          parsed.forEach((saved: any) => {
+            // Verify bucket exists on chain
+            polkadotApi.query.providers.buckets(saved.bucketId).then((bucket) => {
+              if (!bucket.isEmpty) {
+                const bucketData = (bucket as any).unwrap?.()?.toHuman?.() || bucket.toHuman?.() || bucket;
+                const bucketOwner = bucketData.userId || bucketData.owner;
+                if (bucketOwner && bucketOwner.toLowerCase() === walletAddress.toLowerCase()) {
+                  buckets.push({
+                    bucketId: saved.bucketId,
+                    bucketName: saved.bucketName,
+                    mspId: bucketData.mspId,
+                    isPrivate: bucketData.isPrivate || false,
+                  });
+                }
+              }
+            }).catch(() => {
+              // Bucket doesn't exist, skip
+            });
+          });
+        }
+      } catch (localError) {
+        console.warn('LocalStorage query failed:', localError);
+      }
+      
+      // Method 3: Try to derive bucket IDs from common bucket names
+      // This is a fallback - try some common bucket names
+      const commonNames = ['my-bucket', 'test-bucket', 'bucket-1', 'default-bucket'];
+      for (const bucketName of commonNames) {
+        try {
+          const bucketId = (await storageHubClient.deriveBucketId(
+            walletAddress as `0x${string}`,
+            bucketName
+          )) as string;
+          
+          const bucket = await polkadotApi.query.providers.buckets(bucketId);
+          if (!bucket.isEmpty) {
+            const bucketData = (bucket as any).unwrap?.()?.toHuman?.() || bucket.toHuman?.() || bucket;
+            const bucketOwner = bucketData.userId || bucketData.owner;
+            
+            if (bucketOwner && bucketOwner.toLowerCase() === walletAddress.toLowerCase()) {
+              // Check if already added
+              if (!buckets.find(b => b.bucketId === bucketId)) {
+                buckets.push({
+                  bucketId,
+                  bucketName,
+                  mspId: bucketData.mspId,
+                  isPrivate: bucketData.isPrivate || false,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          // Bucket doesn't exist with this name, continue
+        }
+      }
       
       return buckets;
     } catch (err: any) {

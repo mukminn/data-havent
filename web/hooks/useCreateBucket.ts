@@ -68,6 +68,20 @@ export function useCreateBucket() {
         throw new Error('Transaction failed');
       }
 
+      // Save bucket to localStorage for easy retrieval later
+      try {
+        const savedBuckets = localStorage.getItem(`buckets_${walletAddress.toLowerCase()}`);
+        const buckets = savedBuckets ? JSON.parse(savedBuckets) : [];
+        buckets.push({
+          bucketId,
+          bucketName,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem(`buckets_${walletAddress.toLowerCase()}`, JSON.stringify(buckets));
+      } catch (storageError) {
+        console.warn('Failed to save bucket to localStorage:', storageError);
+      }
+
       return {
         success: true,
         bucketId,
