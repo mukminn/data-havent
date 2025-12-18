@@ -68,7 +68,7 @@ export function useUploadFile() {
         BigInt(fileBytes.length),
         mspId as `0x${string}`,
         [], // peerIds - empty for now
-        undefined, // replicationTarget
+        'Single' as any, // replicationTarget - use 'Single' as default
         undefined, // customReplicationTarget
         {} // options
       );
