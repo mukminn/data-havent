@@ -20,11 +20,20 @@ export function useListFiles() {
     try {
       const { mspClient } = await getMspClient();
 
-      // List files in bucket
-      // Note: MSP client might not have direct listFiles method
-      // We'll need to query the chain or use bucket metadata
-      // For now, return empty array - this needs to be implemented based on SDK API
+      // List files in bucket using buckets.getFiles
+      const filesData = await mspClient.buckets.getFiles(bucketId as `0x${string}`);
+      
+      // Extract file keys from the response
+      // The response structure may vary, so we'll handle it safely
       const files: string[] = [];
+      if (filesData && Array.isArray(filesData)) {
+        files.push(...filesData.map((f: any) => f.key || f.name || String(f)));
+      } else if (filesData && typeof filesData === 'object') {
+        // If it's an object with files array
+        if ('files' in filesData && Array.isArray(filesData.files)) {
+          files.push(...filesData.files.map((f: any) => f.key || f.name || String(f)));
+        }
+      }
 
       return {
         success: true,

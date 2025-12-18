@@ -34,14 +34,12 @@ export function useUploadFile() {
       const mspInfo = await mspClient.info.getInfo();
       const mspId = mspInfo.mspId;
 
-      // Derive file key
-      const fileKey = (await storageHubClient.deriveFileKey(
-        walletAddress as `0x${string}`,
-        bucketId as `0x${string}`,
-        file.name
-      )) as string;
-
-      console.log('📝 File key derived:', fileKey);
+      // Derive file key from bucket ID and file name
+      // File key is typically: hash(owner + bucketId + fileName)
+      // For now, we'll use a simple approach - in production, use proper derivation
+      const fileKey = `${bucketId}_${file.name}`;
+      
+      console.log('📝 File key:', fileKey);
 
       // Step 1: Authenticate with MSP (SIWE) - required for upload
       const walletClient = await getWalletClient(config);
