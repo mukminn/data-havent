@@ -184,12 +184,13 @@ export function useUploadFile() {
       }
       
       try {
-        const mspUrl = new URL(MSP_URL);
-        const domain = mspUrl.hostname;
-        const siweSession = await mspClient.auth.SIWE(walletClient as any);
+        // SIWE signature: SIWE(wallet, signal?)
+        // Try with just wallet first
+        const siweSession = await (mspClient.auth.SIWE as any)(walletClient);
         console.log('✅ Authenticated with MSP');
       } catch (authError: any) {
         console.warn('⚠️ SIWE authentication failed:', authError.message);
+        console.log('Continuing with upload - authentication may not be required');
         // Continue anyway - some operations might work without auth
       }
 
