@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { uploadFileAction } from '@/lib/actions';
+import { useUploadFile } from '@/hooks/useUploadFile';
 
 interface UploadFileProps {
   bucketId: string;
@@ -9,30 +9,27 @@ interface UploadFileProps {
 }
 
 export function UploadFile({ bucketId, onSuccess }: UploadFileProps) {
+  const { uploadFile, loading } = useUploadFile();
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
 
-    setLoading(true);
     setMessage('');
 
     try {
-      const result = await uploadFileAction(bucketId, file);
+      const result = await uploadFile(bucketId, file);
       if (result.success) {
-        setMessage(`✅ File uploaded! Key: ${result.fileKey}`);
+        setMessage(`✅ ${result.message || `File uploaded! Key: ${result.fileKey}`}`);
         setFile(null);
         onSuccess?.();
       } else {
-        setMessage(`❌ Error: ${result.error}`);
+        setMessage(`❌ Error: ${result.error || 'Failed to upload file'}`);
       }
     } catch (error: any) {
       setMessage(`❌ Error: ${error.message || 'Failed to upload file'}`);
-    } finally {
-      setLoading(false);
     }
   };
 
