@@ -10,11 +10,13 @@ export async function createBucketAction(bucketName: string) {
     return {
       success: false,
       error: 'Server actions not yet implemented. Use client-side SDK calls.',
+      bucketId: undefined,
     };
   } catch (error: any) {
     return {
       success: false,
       error: error.message || 'Failed to create bucket',
+      bucketId: undefined,
     };
   }
 }
@@ -41,11 +43,13 @@ export async function uploadFileAction(bucketId: string, file: File) {
     return {
       success: false,
       error: 'Server actions not yet implemented',
+      fileKey: undefined,
     };
   } catch (error: any) {
     return {
       success: false,
       error: error.message || 'Failed to upload file',
+      fileKey: undefined,
     };
   }
 }
@@ -72,11 +76,13 @@ export async function downloadFileAction(bucketId: string, fileKey: string) {
     return {
       success: false,
       error: 'Server actions not yet implemented',
+      blob: undefined,
     };
   } catch (error: any) {
     return {
       success: false,
       error: error.message || 'Failed to download file',
+      blob: undefined,
     };
   }
 }

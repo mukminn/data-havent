@@ -23,12 +23,12 @@ export function CreateBucket({ onSuccess }: CreateBucketProps) {
 
     try {
       const result = await createBucketAction(bucketName.trim());
-      if (result.success) {
+      if (result.success && result.bucketId) {
         setMessage(`✅ Bucket created! ID: ${result.bucketId}`);
         setBucketName('');
         onSuccess?.();
       } else {
-        setMessage(`❌ Error: ${result.error}`);
+        setMessage(`❌ Error: ${result.error || 'Failed to create bucket'}`);
       }
     } catch (error: any) {
       setMessage(`❌ Error: ${error.message || 'Failed to create bucket'}`);
