@@ -51,7 +51,8 @@ export function useUploadFile() {
       const domain = mspUrl.hostname;
       
       console.log('🔐 Authenticating with MSP via SIWE...');
-      const siweSession = await mspClient.auth.SIWE(walletClient as any, domain);
+      // SIWE signature: SIWE(wallet, domain?, statement?, uri?, version?, chainId?, nonce?, expirationTime?, signal?)
+      const siweSession = await mspClient.auth.SIWE(walletClient as any, domain, undefined, undefined, undefined, undefined, undefined, undefined);
       console.log('✅ Authenticated with MSP');
 
       // Step 2: Issue storage request on-chain
