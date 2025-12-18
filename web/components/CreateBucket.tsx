@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
-import { createBucketAction } from '@/lib/actions';
+import { useCreateBucket } from '@/hooks/useCreateBucket';
 
 interface CreateBucketProps {
   onSuccess?: () => void;
@@ -10,19 +10,18 @@ interface CreateBucketProps {
 
 export function CreateBucket({ onSuccess }: CreateBucketProps) {
   const { address } = useAccount();
+  const { createBucket, loading } = useCreateBucket();
   const [bucketName, setBucketName] = useState('');
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address || !bucketName.trim()) return;
 
-    setLoading(true);
     setMessage('');
 
     try {
-      const result = await createBucketAction(bucketName.trim());
+      const result = await createBucket(bucketName.trim());
       if (result.success && result.bucketId) {
         setMessage(`✅ Bucket created! ID: ${result.bucketId}`);
         setBucketName('');
@@ -32,8 +31,6 @@ export function CreateBucket({ onSuccess }: CreateBucketProps) {
       }
     } catch (error: any) {
       setMessage(`❌ Error: ${error.message || 'Failed to create bucket'}`);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -56,7 +53,7 @@ export function CreateBucket({ onSuccess }: CreateBucketProps) {
         </div>
         <button
           type="submit"
-          disabled={loading || !bucketName.trim()}
+          disabled={loading || !bucketName.trim() || !address}
           className="px-6 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {loading ? 'Creating...' : 'Create Bucket'}
