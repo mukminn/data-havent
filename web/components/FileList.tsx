@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { listFilesAction, downloadFileAction } from '@/lib/actions';
+import { useListFiles } from '@/hooks/useListFiles';
+import { useDownloadFile } from '@/hooks/useDownloadFile';
 
 interface FileListProps {
   bucketId: string;
 }
 
 export function FileList({ bucketId }: FileListProps) {
+  const { listFiles, loading } = useListFiles();
+  const { downloadFile } = useDownloadFile();
   const [files, setFiles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,23 +21,20 @@ export function FileList({ bucketId }: FileListProps) {
   }, [bucketId]);
 
   const loadFiles = async () => {
-    setLoading(true);
     try {
-      const result = await listFilesAction(bucketId);
+      const result = await listFiles(bucketId);
       if (result.success) {
         setFiles(result.files || []);
       }
     } catch (error) {
       console.error('Error loading files:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDownload = async (fileKey: string) => {
     setDownloading(fileKey);
     try {
-      const result = await downloadFileAction(bucketId, fileKey);
+      const result = await downloadFile(bucketId, fileKey);
       if (result.success && result.blob) {
         // Create download link
         const url = window.URL.createObjectURL(result.blob);
