@@ -74,7 +74,8 @@ export function useListBuckets() {
         return null;
       }
 
-      const bucketData = bucket.unwrap().toHuman() as any;
+      // Access bucket data - the structure may vary
+      const bucketData = (bucket as any).unwrap?.()?.toHuman?.() || bucket.toHuman?.() || bucket;
       
       return {
         bucketId,
