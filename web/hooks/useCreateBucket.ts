@@ -52,7 +52,7 @@ export function useCreateBucket() {
         mspId as `0x${string}`,
         bucketName,
         false, // isPrivate
-        valuePropId
+        valuePropId as `0x${string}`
       );
 
       if (!txHash) {
