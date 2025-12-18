@@ -53,41 +53,30 @@ export function useUploadFile() {
       const mspInfo = await mspClient.info.getInfo();
       const mspId = mspInfo.mspId;
       
-      // Extract peer IDs from multiaddresses
-      // Multiaddresses might be in different properties, try multiple locations
+      // According to docs, getMspInfo() should return { mspId, multiaddresses }
+      // Extract multiaddresses from the response
+      const multiaddresses = (mspInfo as any).multiaddresses || [];
+      
+      // Ensure the MSP exposes at least one multiaddress (required to reach it over libp2p)
+      if (!multiaddresses?.length) {
+        throw new Error('MSP multiaddresses are missing');
+      }
+      
+      // Extract the MSP's libp2p peer IDs from the multiaddresses
+      // Each address should contain a `/p2p/<peerId>` segment
       function extractPeerIDs(multiaddresses: string[]): string[] {
         return (multiaddresses ?? [])
-          .map((addr) => {
-            // Handle different formats: /p2p/... or p2p/...
-            const parts = addr.split('/p2p/');
-            if (parts.length > 1) {
-              return parts[parts.length - 1];
-            }
-            // Try alternative format
-            const altParts = addr.split('p2p/');
-            if (altParts.length > 1) {
-              return altParts[altParts.length - 1].split('/')[0];
-            }
-            return null;
-          })
+          .map((addr) => addr.split('/p2p/').pop())
           .filter((id): id is string => !!id);
       }
       
-      // Try to get multiaddresses from different possible locations
-      let multiaddresses: string[] = [];
-      if ((mspInfo as any).multiaddresses) {
-        multiaddresses = (mspInfo as any).multiaddresses;
-      } else if ((mspInfo as any).addresses) {
-        multiaddresses = (mspInfo as any).addresses;
-      } else if ((mspInfo as any).libp2pAddresses) {
-        multiaddresses = (mspInfo as any).libp2pAddresses;
+      const peerIds: string[] = extractPeerIDs(multiaddresses);
+      
+      // Validate that at least one valid peer ID was found
+      if (peerIds.length === 0) {
+        throw new Error('MSP multiaddresses had no /p2p/<peerId> segment');
       }
       
-      const peerIds = extractPeerIDs(multiaddresses);
-      if (peerIds.length === 0) {
-        console.warn('⚠️ No peer IDs found in MSP multiaddresses, using empty array');
-        console.log('MSP Info structure:', mspInfo);
-      }
       console.log(`Found ${peerIds.length} peer IDs`);
 
       // Set replication policy
@@ -177,7 +166,8 @@ export function useUploadFile() {
       }
 
       // Step 7: Authenticate with MSP (SIWE)
-      console.log('🔐 Authenticating with MSP...');
+      // Authenticating the bucket owner address with MSP prior to file upload is required
+      console.log('🔐 Authenticating with MSP via SIWE...');
       const walletClient = await getWalletClient(config);
       if (!walletClient) {
         throw new Error('Wallet client not available');
@@ -185,13 +175,12 @@ export function useUploadFile() {
       
       try {
         // SIWE signature: SIWE(wallet, signal?)
-        // Try with just wallet first
         const siweSession = await (mspClient.auth.SIWE as any)(walletClient);
         console.log('✅ Authenticated with MSP');
+        console.log('SIWE Session:', siweSession);
       } catch (authError: any) {
-        console.warn('⚠️ SIWE authentication failed:', authError.message);
-        console.log('Continuing with upload - authentication may not be required');
-        // Continue anyway - some operations might work without auth
+        console.error('❌ SIWE authentication failed:', authError.message);
+        throw new Error(`Authentication required for file upload: ${authError.message}`);
       }
 
       // Step 8: Upload file to MSP
