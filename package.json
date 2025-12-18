@@ -1,0 +1,35 @@
+{
+  "name": "data-havent",
+  "version": "1.0.0",
+  "description": "DataHaven StorageHub SDK integration project",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx --env-file=.env src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "generate-wallet": "tsx --env-file=.env src/utils/generateWallet.ts"
+  },
+  "keywords": [
+    "datahaven",
+    "storagehub",
+    "sdk"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@polkadot/api": "^12.0.0",
+    "@storagehub-sdk/core": "^0.4.0",
+    "@storagehub-sdk/msp-client": "^0.4.0",
+    "@storagehub/api-augment": "^0.2.11",
+    "@storagehub/types-bundle": "^0.2.8",
+    "dotenv": "^16.4.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0"
+  }
+}
