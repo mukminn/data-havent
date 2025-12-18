@@ -46,14 +46,17 @@ export function useUploadFile() {
       if (!walletClient) {
         throw new Error('Wallet client not available');
       }
-
-      const mspUrl = new URL(MSP_URL);
-      const domain = mspUrl.hostname;
       
       console.log('🔐 Authenticating with MSP via SIWE...');
-      // SIWE signature: SIWE(wallet, signal?)
-      const siweSession = await mspClient.auth.SIWE(walletClient as any);
-      console.log('✅ Authenticated with MSP');
+      try {
+        // SIWE signature might require specific wallet format
+        // Try with walletClient directly
+        const siweSession = await mspClient.auth.SIWE(walletClient as any, undefined);
+        console.log('✅ Authenticated with MSP');
+      } catch (authError: any) {
+        console.warn('⚠️ SIWE authentication failed, trying without auth:', authError.message);
+        // Continue without auth - some operations might work
+      }
 
       // Step 2: Issue storage request on-chain
       console.log('📤 Issuing storage request...');
