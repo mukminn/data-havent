@@ -21,7 +21,7 @@ export function useListFiles() {
       const { mspClient } = await getMspClient();
 
       // List files in bucket
-      const files = await mspClient.storage.listFiles(bucketId as `0x${string}`);
+      const files = await mspClient.files.listFiles(bucketId as `0x${string}`);
 
       return {
         success: true,

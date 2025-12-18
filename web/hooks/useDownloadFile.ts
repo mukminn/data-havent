@@ -21,10 +21,29 @@ export function useDownloadFile() {
       const { mspClient } = await getMspClient();
 
       // Download file from MSP
-      const fileData = await mspClient.storage.downloadFile(
-        bucketId as `0x${string}`,
-        fileKey
-      );
+      const download = await mspClient.files.downloadFile(fileKey);
+      
+      // Convert stream to ArrayBuffer
+      const reader = download.stream.getReader();
+      const chunks: Uint8Array[] = [];
+      let done = false;
+      
+      while (!done) {
+        const { value, done: streamDone } = await reader.read();
+        done = streamDone;
+        if (value) {
+          chunks.push(value);
+        }
+      }
+      
+      // Combine chunks into single Uint8Array
+      const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+      const fileData = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        fileData.set(chunk, offset);
+        offset += chunk.length;
+      }
 
       // Convert to Blob
       const blob = new Blob([fileData], { type: 'application/octet-stream' });
