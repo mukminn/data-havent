@@ -128,11 +128,11 @@ export function useUploadFile() {
       const owner = registry.createType(
         'AccountId20',
         walletAddress
-      ) as any as AccountId20; // Type compatibility workaround
-      const bucketIdH256 = registry.createType('H256', bucketId) as any as H256; // Type compatibility workaround
+      ) as unknown as AccountId20; // Type compatibility workaround for multiple @polkadot versions
+      const bucketIdH256 = registry.createType('H256', bucketId) as unknown as H256; // Type compatibility workaround
       const fileKey = await fileManager.computeFileKey(
-        owner,
-        bucketIdH256,
+        owner as any,
+        bucketIdH256 as any,
         file.name
       );
       console.log(`File key: ${fileKey.toHex()}`);
