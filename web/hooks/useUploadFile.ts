@@ -55,8 +55,11 @@ export function useUploadFile() {
       const location = file.name;
       
       // Calculate fingerprint (hash of file content)
-      // For now, we'll use a simple approach - in production, use proper hashing
-      const fingerprint = await storageHubClient.hashFile(fileBytes);
+      // Use Web Crypto API for browser-compatible hashing
+      const hashBuffer = await crypto.subtle.digest('SHA-256', fileBytes);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      const fingerprint = `0x${hashHex}` as `0x${string}`;
       
       const storageRequestTxHash = await storageHubClient.issueStorageRequest(
         bucketId as `0x${string}`,
