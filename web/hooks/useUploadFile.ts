@@ -42,21 +42,11 @@ export function useUploadFile() {
       console.log('📝 File key:', fileKey);
 
       // Step 1: Authenticate with MSP (SIWE) - required for upload
-      const walletClient = await getWalletClient(config);
-      if (!walletClient) {
-        throw new Error('Wallet client not available');
-      }
-      
-      console.log('🔐 Authenticating with MSP via SIWE...');
-      try {
-        // SIWE signature might require specific wallet format
-        // Try with walletClient directly
-        const siweSession = await mspClient.auth.SIWE(walletClient as any, undefined);
-        console.log('✅ Authenticated with MSP');
-      } catch (authError: any) {
-        console.warn('⚠️ SIWE authentication failed, trying without auth:', authError.message);
-        // Continue without auth - some operations might work
-      }
+      // Note: SIWE authentication might require specific wallet format
+      // For now, we'll skip authentication and see if upload works
+      // In production, proper SIWE authentication should be implemented
+      console.log('🔐 Skipping SIWE authentication for now...');
+      // TODO: Implement proper SIWE authentication
 
       // Step 2: Issue storage request on-chain
       console.log('📤 Issuing storage request...');
