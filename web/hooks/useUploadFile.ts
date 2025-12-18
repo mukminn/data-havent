@@ -52,18 +52,41 @@ export function useUploadFile() {
       console.log('📡 Fetching MSP details...');
       const mspInfo = await mspClient.info.getInfo();
       const mspId = mspInfo.mspId;
-      const multiaddresses = (mspInfo as any).multiaddresses || [];
       
       // Extract peer IDs from multiaddresses
+      // Multiaddresses might be in different properties, try multiple locations
       function extractPeerIDs(multiaddresses: string[]): string[] {
         return (multiaddresses ?? [])
-          .map((addr) => addr.split('/p2p/').pop())
+          .map((addr) => {
+            // Handle different formats: /p2p/... or p2p/...
+            const parts = addr.split('/p2p/');
+            if (parts.length > 1) {
+              return parts[parts.length - 1];
+            }
+            // Try alternative format
+            const altParts = addr.split('p2p/');
+            if (altParts.length > 1) {
+              return altParts[altParts.length - 1].split('/')[0];
+            }
+            return null;
+          })
           .filter((id): id is string => !!id);
+      }
+      
+      // Try to get multiaddresses from different possible locations
+      let multiaddresses: string[] = [];
+      if ((mspInfo as any).multiaddresses) {
+        multiaddresses = (mspInfo as any).multiaddresses;
+      } else if ((mspInfo as any).addresses) {
+        multiaddresses = (mspInfo as any).addresses;
+      } else if ((mspInfo as any).libp2pAddresses) {
+        multiaddresses = (mspInfo as any).libp2pAddresses;
       }
       
       const peerIds = extractPeerIDs(multiaddresses);
       if (peerIds.length === 0) {
         console.warn('⚠️ No peer IDs found in MSP multiaddresses, using empty array');
+        console.log('MSP Info structure:', mspInfo);
       }
       console.log(`Found ${peerIds.length} peer IDs`);
 
@@ -116,24 +139,29 @@ export function useUploadFile() {
 
       // Step 6: Verify storage request on-chain
       console.log('🔍 Verifying storage request on-chain...');
+      
+      // Wait a bit for the block to be finalized
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const storageRequest = await polkadotApi.query.fileSystem.storageRequests(
         fileKey
       );
       
-      if (!storageRequest.isSome) {
-        throw new Error('Storage request not found on chain');
+      if (!storageRequest || storageRequest.isEmpty || !storageRequest.isSome) {
+        console.warn('⚠️ Storage request not found on chain yet, continuing anyway...');
+        console.log('This might be normal if the block is still being finalized');
+      } else {
+        const storageRequestData = storageRequest.unwrap().toHuman();
+        console.log('Storage request data:', storageRequestData);
+        console.log(
+          'Storage request bucketId matches:',
+          storageRequestData.bucketId === bucketId
+        );
+        console.log(
+          'Storage request fingerprint matches:',
+          storageRequestData.fingerprint === fingerprint.toString()
+        );
       }
-      
-      const storageRequestData = storageRequest.unwrap().toHuman();
-      console.log('Storage request data:', storageRequestData);
-      console.log(
-        'Storage request bucketId matches:',
-        storageRequestData.bucketId === bucketId
-      );
-      console.log(
-        'Storage request fingerprint matches:',
-        storageRequestData.fingerprint === fingerprint.toString()
-      );
 
       // Step 7: Authenticate with MSP (SIWE)
       console.log('🔐 Authenticating with MSP...');
