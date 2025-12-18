@@ -14,7 +14,7 @@ export async function initializePolkadotApi(): Promise<ApiPromise> {
   
   polkadotApi = await ApiPromise.create({
     provider,
-    typesBundle: types,
+    typesBundle: types as any, // Type compatibility workaround for multiple @polkadot versions
     noInitWarn: true,
   });
 
