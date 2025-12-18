@@ -105,8 +105,8 @@ export function useUploadFile() {
       const owner = registry.createType(
         'AccountId20',
         walletAddress
-      ) as AccountId20;
-      const bucketIdH256 = registry.createType('H256', bucketId) as H256;
+      ) as any as AccountId20; // Type compatibility workaround
+      const bucketIdH256 = registry.createType('H256', bucketId) as any as H256; // Type compatibility workaround
       const fileKey = await fileManager.computeFileKey(
         owner,
         bucketIdH256,
