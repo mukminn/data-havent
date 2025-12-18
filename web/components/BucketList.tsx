@@ -10,34 +10,111 @@ interface BucketListProps {
 
 export function BucketList({ refreshTrigger }: BucketListProps) {
   const { address } = useAccount();
-  const { listBuckets, loading } = useListBuckets();
+  const { listBuckets, queryBucketsByAddress, loading } = useListBuckets();
   const [buckets, setBuckets] = useState<BucketInfo[]>([]);
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string>('');
+  const [queryMode, setQueryMode] = useState<'auto' | 'manual'>('auto');
 
   useEffect(() => {
-    if (address) {
+    if (address && queryMode === 'auto') {
       loadBuckets();
     }
-  }, [address, refreshTrigger]);
+  }, [address, refreshTrigger, queryMode]);
 
   const loadBuckets = async () => {
-    if (!address) return;
+    if (queryMode === 'manual' && !walletAddress) {
+      return;
+    }
+    
+    const targetAddress = queryMode === 'manual' ? walletAddress : address;
+    if (!targetAddress) return;
     
     try {
-      const result = await listBuckets();
+      let result: BucketInfo[] = [];
+      
+      if (queryMode === 'manual') {
+        result = await queryBucketsByAddress(walletAddress);
+      } else {
+        result = await listBuckets();
+      }
+      
       setBuckets(result || []);
     } catch (error) {
       console.error('Error loading buckets:', error);
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (walletAddress.trim()) {
+      loadBuckets();
+    }
+  };
+
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4">Your Buckets</h3>
+      
+      {/* Query Mode Toggle */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => {
+            setQueryMode('auto');
+            setWalletAddress('');
+          }}
+          className={`px-3 py-1 text-sm rounded ${
+            queryMode === 'auto'
+              ? 'bg-primary-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Auto (Connected Wallet)
+        </button>
+        <button
+          onClick={() => setQueryMode('manual')}
+          className={`px-3 py-1 text-sm rounded ${
+            queryMode === 'manual'
+              ? 'bg-primary-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Manual (Enter Address)
+        </button>
+      </div>
+
+      {/* Manual Query Form */}
+      {queryMode === 'manual' && (
+        <form onSubmit={handleSubmit} className="mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={walletAddress}
+              onChange={(e) => setWalletAddress(e.target.value)}
+              placeholder="Enter wallet address (0x...)"
+              className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading || !walletAddress.trim()}
+              className="px-6 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Checking...' : 'Check Buckets'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Buckets List */}
       {loading ? (
         <div className="text-gray-600">Loading buckets...</div>
       ) : buckets.length === 0 ? (
-        <p className="text-gray-600">No buckets found. Create one above!</p>
+        <p className="text-gray-600">
+          {queryMode === 'manual' && walletAddress
+            ? `No buckets found for address: ${walletAddress.slice(0, 10)}...`
+            : 'No buckets found. Create one above!'}
+        </p>
       ) : (
         <div className="space-y-2">
           {buckets.map((bucket) => (
@@ -64,15 +141,26 @@ export function BucketList({ refreshTrigger }: BucketListProps) {
               </div>
               {selectedBucket === bucket.bucketId && (
                 <div className="mt-2 pt-2 border-t">
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 mb-2">
                     Use this bucket ID to upload files
                   </p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(bucket.bucketId);
+                      alert('Bucket ID copied to clipboard!');
+                    }}
+                    className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded"
+                  >
+                    Copy Bucket ID
+                  </button>
                 </div>
               )}
             </div>
           ))}
         </div>
       )}
+      
       <button
         onClick={loadBuckets}
         disabled={loading}

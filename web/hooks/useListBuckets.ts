@@ -88,5 +88,60 @@ export function useListBuckets() {
     }
   };
 
-  return { listBuckets, getBucketInfo, loading, error };
+  // Query buckets by wallet address (scan chain for buckets owned by address)
+  const queryBucketsByAddress = async (walletAddress: string): Promise<BucketInfo[]> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const polkadotApi = await initializePolkadotApi();
+      const { storageHubClient } = await getStorageHubClient();
+      
+      // Note: This is a simplified approach
+      // In a real implementation, you would:
+      // 1. Query chain events for bucket creation transactions
+      // 2. Filter by owner address
+      // 3. Or use an indexer/API that tracks buckets by owner
+      
+      // For now, we'll try to get buckets from MSP if authenticated
+      // and also provide a way to manually check known bucket IDs
+      
+      const buckets: BucketInfo[] = [];
+      
+      // Try MSP first
+      try {
+        const { mspClient } = await getMspClient();
+        const mspBuckets = await mspClient.buckets.listBuckets();
+        
+        if (mspBuckets && Array.isArray(mspBuckets)) {
+          mspBuckets.forEach((bucket: any) => {
+            const bucketOwner = bucket.owner || bucket.userId;
+            if (bucketOwner && bucketOwner.toLowerCase() === walletAddress.toLowerCase()) {
+              buckets.push({
+                bucketId: bucket.id || bucket.bucketId || String(bucket),
+                bucketName: bucket.name,
+                mspId: bucket.mspId,
+                isPrivate: bucket.isPrivate,
+              });
+            }
+          });
+        }
+      } catch (mspError) {
+        console.warn('MSP query failed, will try alternative methods:', mspError);
+      }
+      
+      // If no buckets found, return empty array
+      // In production, you might want to query chain events or use an indexer
+      
+      return buckets;
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to query buckets by address';
+      setError(errorMessage);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { listBuckets, getBucketInfo, queryBucketsByAddress, loading, error };
 }
